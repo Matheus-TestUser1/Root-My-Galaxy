@@ -1,7 +1,11 @@
 package dev.busung.s25uroot
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -26,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Security
@@ -34,6 +39,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -74,6 +81,7 @@ class InstallActivity : ComponentActivity() {
                 accentColor = AppPreferences.accentColor(this),
                 themeMode = AppPreferences.themeMode(this),
             ) {
+                val context = LocalContext.current
                 val installState by installViewModel.state.collectAsStateWithLifecycle()
                 BackHandler(enabled = installState.busy) {}
                 LaunchedEffect(startInstall, profileId) {
@@ -83,6 +91,9 @@ class InstallActivity : ComponentActivity() {
                     installState = installState,
                     onRetry = { installViewModel.install(profileId) },
                     onClose = ::finish,
+                    onCopyLog = { log ->
+                        copyLogToClipboard(context, log)
+                    },
                 )
             }
         }
@@ -92,6 +103,13 @@ class InstallActivity : ComponentActivity() {
         const val EXTRA_INSTALL_REQUEST_ID = "install_request_id"
         const val EXTRA_PROFILE_ID = "profile_id"
     }
+}
+
+private fun copyLogToClipboard(context: Context, log: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("Install Log", log)
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(context, context.getString(R.string.log_copied), Toast.LENGTH_SHORT).show()
 }
 
 private data class InstallerStep(
@@ -112,6 +130,7 @@ private fun InstallScreen(
     installState: InstallUiState,
     onRetry: () -> Unit,
     onClose: () -> Unit,
+    onCopyLog: (String) -> Unit,
 ) {
     val logScrollState = rememberScrollState()
     LaunchedEffect(installState.log) {
@@ -151,6 +170,7 @@ private fun InstallScreen(
                 output = installState.log,
                 modifier = Modifier.weight(1f),
                 scrollState = logScrollState,
+                onCopy = { onCopyLog(installState.log) },
             )
 
             if (!installState.busy) {
@@ -310,6 +330,7 @@ private fun InstallerLog(
     output: String,
     modifier: Modifier,
     scrollState: androidx.compose.foundation.ScrollState,
+    onCopy: () -> Unit,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -321,7 +342,19 @@ private fun InstallerLog(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.install_live_progress), style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.install_live_progress), style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = onCopy) {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = stringResource(R.string.action_copy_log),
+                    )
+                }
+            }
             Text(
                 text = output.ifBlank { stringResource(R.string.install_preparing) },
                 modifier = Modifier

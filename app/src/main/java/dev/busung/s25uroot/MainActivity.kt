@@ -1,16 +1,17 @@
 package dev.busung.s25uroot
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
-import android.content.ClipboardManager
-import android.content.ClipData
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -23,7 +24,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -49,24 +49,25 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.BrightnessAuto
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Error
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -105,8 +106,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
@@ -181,6 +182,13 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (resumedOnce) installViewModel.refresh() else resumedOnce = true
     }
+}
+
+private fun copyLogToClipboard(context: Context, log: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("Install Log", log)
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(context, context.getString(R.string.log_copied), Toast.LENGTH_SHORT).show()
 }
 
 private enum class AppPage(@StringRes val label: Int, val icon: ImageVector) {
@@ -690,6 +698,7 @@ private fun HistoryDetail(
     entry: InstallHistoryEntry,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(padding),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
@@ -717,13 +726,38 @@ private fun HistoryDetail(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ),
             ) {
-                Text(
-                    text = entry.log.ifBlank { stringResource(R.string.history_log_empty) },
+                Column(
                     modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.history_log),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        IconButton(
+                            onClick = {
+                                copyLogToClipboard(context, entry.log)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ContentCopy,
+                                contentDescription = stringResource(R.string.action_copy_log),
+                            )
+                        }
+                    }
+                    Text(
+                        text = entry.log.ifBlank { stringResource(R.string.history_log_empty) },
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         }
     }
